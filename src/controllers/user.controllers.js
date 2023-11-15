@@ -98,6 +98,19 @@ const logedUser = catchError(async(req, res) => {
   return res.json(user);
 });
 
+const verifyCode = catchError(async(req, res) => {
+    const { code } = req.params;
+    console.log(code);
+    const emailCode = await EmailCode.findOne({ where: { code: code }});
+    if(!emailCode) return res.status(401).json({ message: "!Code not found! "});
+    const user = await User.findByPk(emailCode.userId);
+    user.isVerified = true;
+    await user.save(); //Actualizamos el valor del campo isVerified de la tabla User
+    emailCode.destroy(); //Eliminamos el registro del codigo encontrado
+  //return res.json({ message:"verified code"})
+  return res.json(user);
+});
+
 module.exports = {
   getAll,
   create,
@@ -105,5 +118,6 @@ module.exports = {
   remove,
   update,
   login,
-  logedUser
+  logedUser,
+  verifyCode
 }
