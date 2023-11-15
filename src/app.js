@@ -17,7 +17,7 @@ app.use(cors());
 
 app.use(router);
 app.get('/', (req, res) => {
-    return res.send("Welcome to express!");
+    return res.send("Welcome to email verification app!");
 })
 
 // middlewares después de las rutas
