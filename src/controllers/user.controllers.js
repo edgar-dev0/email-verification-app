@@ -71,7 +71,7 @@ const update = catchError(async(req, res) => {
       country,
       image
     },
-    { where: {id}, returning: true }
+    { where: { id }, returning: true }
   );
   if(result[0] === 0) return res.sendStatus(404);
   return res.json(result[1][0]);
@@ -100,7 +100,6 @@ const logedUser = catchError(async(req, res) => {
 
 const verifyCode = catchError(async(req, res) => {
     const { code } = req.params;
-    console.log(code);
     const emailCode = await EmailCode.findOne({ where: { code: code }});
     if(!emailCode) return res.status(401).json({ message: "!Code not found! "});
     const user = await User.findByPk(emailCode.userId);
@@ -111,6 +110,48 @@ const verifyCode = catchError(async(req, res) => {
   return res.json(user);
 });
 
+const resetPassword = catchError(async(req, res) => {
+  const { email, frontBaseUrl } = req.body;
+  user = await User.findOne({ where: { email: email }});
+  if(!user) return res.status(401).json({ message: "Email not found" });
+  const code = require('crypto').randomBytes(32).toString('hex');
+  const link = `${frontBaseUrl}/auth/reset_password/${code}`
+
+  //code to send mail
+  await emailSender({
+    to: email,
+    subject: 'Reset password for user app',
+    //text: 'Este es un correo desde node',
+    html: `
+      <h1>Hello</h1>
+      <hr>
+      <p><b>You have requested a password reset</b></p>
+      <p><b></b>Please click the follow link to continue with the process:</b></p>
+      <h4><a href="${link}">${link}</a></h4>
+    `
+  });
+
+  await EmailCode.create({
+    code: code,
+    userId: user.id
+  });
+  return res.status(201).json({ message: "Password reset" });
+});
+
+const renewPassword = catchError(async(req, res) => {
+  const { password } = req.body;
+  const { code } = req.params;
+  if(!code) return res.status(401).json({ message: "Invalid code"} );
+  const emailCode = await EmailCode.findOne({ where: { code: code }});
+  if(!emailCode) return res.status(401).json({ message: "!Code not found! "});
+  const encryptedPassword = await bcrypt.hash(password, 10);
+  const user = await User.findByPk(emailCode.userId);
+  user.password = encryptedPassword;
+  await user.save(); //Actualizamos el valor del campo password de la tabla User
+  emailCode.destroy();
+  return res.status(201).json({ message: "Updated password." });
+});
+
 module.exports = {
   getAll,
   create,
@@ -119,5 +160,7 @@ module.exports = {
   update,
   login,
   logedUser,
-  verifyCode
+  verifyCode,
+  resetPassword,
+  renewPassword
 }
